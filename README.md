@@ -222,3 +222,40 @@ When an organization is created:
 - Protected endpoints require Bearer token
 - Role-based access control (admin-only operations)
 
+---
+
+## Additional Questions & Design Notes
+
+### Is this a scalable architecture?
+**Yes, this architecture is scalable for multi-tenant SaaS applications:**
+- **Master DB for metadata:** Centralizes organization/user management, making onboarding and admin operations efficient.
+- **Dynamic collections per organization:** Ensures data isolation, simplifies per-tenant queries, and supports custom schemas if needed.
+- **Stateless JWT authentication:** Scales horizontally, no session storage bottleneck.
+- **MongoDB:** Handles large numbers of collections and documents, sharding and replica sets available for scale.
+
+### Trade-offs & Considerations
+- **Collection-per-tenant:**
+  - **Pros:** Data isolation, easy backup/restore, per-tenant scaling, security boundaries.
+  - **Cons:** MongoDB has a practical limit on number of collections (tens of thousands), and each collection has overhead. For very large numbers of tenants, a shared collection with tenantId field may be more efficient.
+- **No relational joins:** MongoDB is not ideal for complex cross-tenant analytics or reporting; consider hybrid approaches if needed.
+- **Indexing:** Compound indexes (e.g., email+org) are critical for performance and uniqueness, but must be managed as data grows.
+
+
+### Alternative Designs
+- **Shared Collection Model:** Instead of one collection per org, use a single collection with a tenant/org field. This scales to millions of tenants, but sacrifices isolation and may require more complex query logic and access control.
+- **Microservices:** For very large scale, split user/org management, authentication, and data storage into separate services, possibly using different databases optimized for each use case.
+- **Relational DB:** For strong consistency and complex relationships, consider PostgreSQL with row-level security and schemas per tenant.
+
+### Why this design?
+- **Simplicity:** Easy to reason about, onboard new tenants, and debug issues.
+
+- **MongoDB strengths:** Flexible schema, fast prototyping, and good support for document-based multi-tenancy.
+
+---
+
+**If you have further questions or want to discuss alternative architectures, I’m happy to elaborate!**
+
+---
+
+**Resume:** [View My Resume](https://drive.google.com/file/d/1GHZAQNb_A9mBo0sBrVNuLHvnbIjQR-7y/view)
+
