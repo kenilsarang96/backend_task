@@ -4,19 +4,19 @@ Backend service implementing multi-tenant-style organizations with a Master Data
 
 ## Quick Start
 
-1. Install deps
+1. Clone the repository
+
+```powershell
+git clone https://github.com/kenilsarang96/backend_task
+cd backend_task
+```
+
+2. Install deps
 
 ```powershell
 npm install
 ```
-
-2. Set env vars (PowerShell) and run
-
-```powershell
-$env:PORT=3000; $env:MONGODB_URI="mongodb://127.0.0.1:27017/org_master"; $env:CORS_ORIGIN="http://localhost:3000"; $env:JWT_SECRET="your_jwt_secret_here"; npm run start
-```
-
-Or create a `.env` file:
+ create a `.env` file:
 
 ```
 PORT=3000
@@ -137,7 +137,6 @@ Stores:
 - Organization metadata (`organizations` collection)
 - Admin user credentials (`users` collection) - securely hashed with bcrypt
 - Connection details for each organization's dynamic collection
-- Compound unique index on `(email, org)` in users collection
 
 ### Dynamic Collection Creation
 When an organization is created:
@@ -150,3 +149,74 @@ When an organization is created:
 - Passwords hashed with `bcryptjs` (10 rounds)
 - Protected endpoints require Bearer token
 - Role-based access control (admin-only operations)
+
+## Data Storage Architecture
+
+```mermaid
+flowchart TB
+    subgraph MasterDatabase["MASTER DATABASE (master_db)"]
+        subgraph Orgs["organizations"]
+            O1["_id"]
+            O2["name"]
+            O3["collectionName"]
+            O4["adminUser (ref users)"]
+            O5["timestamps"]
+        end
+
+        subgraph Users["users"]
+            U1["_id"]
+            U2["email"]
+            U3["passwordHash"]
+            U4["org (ref organizations)"]
+            U5["role"]
+            U6["timestamps"]
+        end
+    end
+
+    O4 --> Users
+    U4 --> Orgs
+
+    MasterDatabase --> Collections
+
+    subgraph Collections["Organization collections"]
+        C1["org_acme"]
+        C2["org_techcorp"]
+        C3["org_demo"]
+    end
+
+```
+
+# Organization Creation Flow
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant API as Backend
+    participant DB as MongoDB
+
+    C->>API: POST /org/create
+    API->>DB: Validate organization name
+    DB-->>API: OK / Not found
+    API->>DB: Create dynamic collection org_<slug>
+    API->>DB: Insert Organization doc
+    API->>DB: Insert Admin User doc
+    DB-->>API: Success
+    API-->>C: 201 Created + metadata
+
+```
+
+
+# Admin Authentication Flow
+
+```mermaid
+sequenceDiagram
+    participant A as Admin
+    participant API as Backend
+    participant DB as MongoDB
+
+    A->>API: POST /admin/login
+    API->>DB: Validate email + passwordHash
+    DB-->>API: User found
+    API->>API: bcrypt compare + JWT generate
+    API-->>A: token + org metadata
+
+```
