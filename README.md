@@ -31,6 +31,78 @@ then:
 npm run start
 ```
 
+## Data Storage Architecture
+
+```mermaid
+flowchart TB
+    subgraph MasterDatabase["MASTER DATABASE (master_db)"]
+        subgraph Orgs["organizations(meta data)"]
+            O1["_id"]
+            O2["name"]
+            O3["collectionName"]
+            O4["adminUser (ref users)"]
+            O5["timestamps"]
+        end
+
+        subgraph Users["users"]
+            U1["_id"]
+            U2["email"]
+            U3["passwordHash"]
+            U4["org (ref organizations)"]
+            U5["role"]
+            U6["timestamps"]
+        end
+    end
+
+    O4 --> Users
+    U4 --> Orgs
+
+    MasterDatabase --> Collections
+
+    subgraph Collections["Organization collections"]
+        C1["org_acme"]
+        C2["org_techcorp"]
+        C3["org_demo"]
+    end
+
+```
+
+# Organization Creation Flow
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant API as Backend
+    participant DB as MongoDB
+
+    C->>API: POST /org/create
+    API->>DB: Validate organization name
+    DB-->>API: OK / Not found
+    API->>DB: Create dynamic collection org_<slug>
+    API->>DB: Insert Organization doc
+    API->>DB: Insert Admin User doc
+    DB-->>API: Success
+    API-->>C: 201 Created + metadata
+
+```
+
+
+# Admin Authentication Flow
+
+```mermaid
+sequenceDiagram
+    participant A as Admin
+    participant API as Backend
+    participant DB as MongoDB
+
+    A->>API: POST /admin/login
+    API->>DB: Validate email + passwordHash
+    DB-->>API: User found
+    API->>API: bcrypt compare + JWT generate
+    API-->>A: token + org metadata
+
+```
+
+
 ## API Endpoints
 
 ### Organization Management (`/org`)
@@ -150,73 +222,3 @@ When an organization is created:
 - Protected endpoints require Bearer token
 - Role-based access control (admin-only operations)
 
-## Data Storage Architecture
-
-```mermaid
-flowchart TB
-    subgraph MasterDatabase["MASTER DATABASE (master_db)"]
-        subgraph Orgs["organizations"]
-            O1["_id"]
-            O2["name"]
-            O3["collectionName"]
-            O4["adminUser (ref users)"]
-            O5["timestamps"]
-        end
-
-        subgraph Users["users"]
-            U1["_id"]
-            U2["email"]
-            U3["passwordHash"]
-            U4["org (ref organizations)"]
-            U5["role"]
-            U6["timestamps"]
-        end
-    end
-
-    O4 --> Users
-    U4 --> Orgs
-
-    MasterDatabase --> Collections
-
-    subgraph Collections["Organization collections"]
-        C1["org_acme"]
-        C2["org_techcorp"]
-        C3["org_demo"]
-    end
-
-```
-
-# Organization Creation Flow
-```mermaid
-sequenceDiagram
-    participant C as Client
-    participant API as Backend
-    participant DB as MongoDB
-
-    C->>API: POST /org/create
-    API->>DB: Validate organization name
-    DB-->>API: OK / Not found
-    API->>DB: Create dynamic collection org_<slug>
-    API->>DB: Insert Organization doc
-    API->>DB: Insert Admin User doc
-    DB-->>API: Success
-    API-->>C: 201 Created + metadata
-
-```
-
-
-# Admin Authentication Flow
-
-```mermaid
-sequenceDiagram
-    participant A as Admin
-    participant API as Backend
-    participant DB as MongoDB
-
-    A->>API: POST /admin/login
-    API->>DB: Validate email + passwordHash
-    DB-->>API: User found
-    API->>API: bcrypt compare + JWT generate
-    API-->>A: token + org metadata
-
-```
